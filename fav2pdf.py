@@ -6,7 +6,7 @@ from pdf_gen import *
 from datetime import date
 
 
-user = 'vrtx'
+user = 'streetangel'
 site = user + '.habrahabr.ru'
 from_date = '1 января 2011' # 5 августа 2009
 to_date = '' # 30 ноября 2010
@@ -24,6 +24,7 @@ except:
 	count = 0
 
 page = count / topic_per_page + 1
+page = 1
 
 data_finder = re.compile('(\d+)\s(\D+)\s(\d{4})')
 
@@ -78,12 +79,19 @@ for p in range(1,page+1):
 				td.index('<div class="tm"><a href="http://m.habrahabr.ru/" accesskey="2">μHabr</a>')
 				print '%d Topic: %s->%s' % (i, a[0], a[2])
 				content += '[%s] <a href="#%d">%s</a><br />' % (a[0], i, a[2])
+
+				#td = re.sub('<div class="m">.*,', '<div class="m"><a href="'+ autor +'.habrahabr.ru">'+ autor +'</a>,' , td)
 				t_start = td.find('<div class="txt">')
 				t_stop = td.find('<div class="adv"><script>')
 				topic_res = td[t_start:t_stop]
+				autor = re.findall('<div class="m">(.*),', topic_res)[0]
+				topic_res= re.sub('<div class="m">(.*),', '<div class="m"><a href="http://%s.habrahabr.ru">%s</a>,' % (autor, autor) , topic_res)
 				topic_res = re.sub('\s<br/>\s*\S*<br/>', '<br/>', topic_res)
 				topic_res = topic_res.replace('align="left"/>', '/>')
 				topic_res = topic_res.replace('align="center"', 'align="middle"')
+				
+				topic_res = re.sub('/>\s*<img', '/><br/><img', topic_res)
+				
 				topic = topic + '<div><pdf:nextpage /></div><h2><a name="%d">[%s] </a><a href="%s">%s</a></h2><br><br>' % (i, a[0], a[1], a[2]) + topic_res	
 			except:	
 				print ' Topic: %s->%s is locked!' % (a[0], a[2])

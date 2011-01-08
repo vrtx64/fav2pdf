@@ -76,7 +76,6 @@ header = '''
 
 img {
 	font-family: sans;
-
 }
 
 body, div {

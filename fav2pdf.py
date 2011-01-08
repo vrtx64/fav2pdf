@@ -6,9 +6,9 @@ from pdf_gen import *
 from datetime import date
 
 
-user = 'streetangel'
+user = ''
 site = user + '.habrahabr.ru'
-from_date = '1 января 2011' # 5 августа 2009
+from_date = '' # 5 августа 2009
 to_date = '' # 30 ноября 2010
 
 
@@ -24,7 +24,6 @@ except:
 	count = 0
 
 page = count / topic_per_page + 1
-page = 1
 
 data_finder = re.compile('(\d+)\s(\D+)\s(\d{4})')
 

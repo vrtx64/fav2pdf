@@ -6,10 +6,11 @@ from pdf_gen import *
 from datetime import date
 
 
-user = ''
+user = 'vrtx'
 site = user + '.habrahabr.ru'
 from_date = '' # 5 августа 2009
 to_date = '' # 30 ноября 2010
+blog_m = [] #['Android', 'Mobile Development'] только перечисленные блоги
 
 
 topic_per_page = 10
@@ -70,7 +71,7 @@ for p in range(1,page+1):
 		
 		m_link = 'http://m.habrahabr.ru/post%s' % (re.findall('/\d+/', a[1])[0])
 		
-		if i in topic_m:
+		if (i in topic_m) and ((a[0] in blog_m) or (blog_m == [])):
 
 			topic_dump = urllib.urlopen(m_link)
 			td = topic_dump.read()

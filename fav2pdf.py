@@ -54,7 +54,7 @@ for p in range(1,page+1):
 	dump = urllib.urlopen('http://%s/favorites/page%s' % (site, p))
 	dr = dump.read()
 
-	res = re.findall('class="blog">(.*)<\/a> &rarr\s*\D*\s+<a \D*href="(.*)"\D* class="topic">(.*)<\/a>', dr) #[^(<span class="locked"></span>)]
+	res = re.findall('class="blog">(.*)<\/a>\D*\s*&rarr;\s*\D*\s+<a \D*href="(.*)"\D* class="topic">(.*)<\/a>', dr)
 	
 	data = re.findall('<div class="published">\D+\s*(\d+)\s(\D+)\s(\d{4}).*</span>', dr)
 	

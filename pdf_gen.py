@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
+import codecs
 
 import ho.pisa as pisa
 
-header = '''
+header = u'''
 
 <html>
 <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
@@ -151,7 +152,7 @@ pre {
 
 <div align="center"><img src="http://habrahabr.ru/i/logo.gif"></div>'''
 
-footer = '''
+footer = u'''
 
   <div id="footerContent" align="right">
   <hr>
@@ -163,8 +164,8 @@ footer = '''
 
 
 def go(content, filename):
-	print '\n Prepare PDF...\n'
-	content = header + content + footer
+    print '\n Prepare PDF...\n'
+    content = header + content + footer
 
-	#pisa.showLogging()
-	pisa.CreatePDF(content, file(filename, 'wb'))
+    #pisa.showLogging()
+    pisa.CreatePDF(content.encode('UTF-8'), file(filename, 'wb'))

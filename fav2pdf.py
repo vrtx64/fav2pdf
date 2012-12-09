@@ -9,11 +9,11 @@ import requests
 import lxml.html
 
 
-user = ''
+user = 'JazzCore'
 site = "habrahabr.ru/users/%s" % user
 from_date = '' # 5 августа 2009
 to_date = '' # 30 ноября 2010
-blog_m = [] #['Android', 'Mobile Development'] только перечисленные блоги
+blog_m = [] #[u'Android', u'Mobile Development'] только перечисленные блоги. Должны быть юникодные, не забывать 'u' перед строкой. Звездочки писать не надо.
 
 topic_per_page = 10
 month = [u'января', u'февраля', u'марта', u'апреля', u'мая', u'июня', u'июля', u'августа', u'сентября', u'октября',
@@ -24,7 +24,14 @@ dr = requests.get('http://' + site + '/favorites/').text
 
 try:
     doc = lxml.html.document_fromstring(dr)
-    count = int(doc.xpath('.//div/a/span/span/text()')[0])
+
+    profilepage = requests.get('http://' + site).text
+    profiledoc = lxml.html.document_fromstring(profilepage)
+    if u'read-only' in profilepage:
+        count = int(doc.xpath('.//td/a/span/span/text()')[0])
+    else:
+        count = doc.xpath('.//div/a/span/span/text()')
+    # Read-only accounts have different page layout, so it needs different handling
 except:
     print 'No favorites found. Most likely its a typo in username'
     sys.exit(1)
@@ -59,11 +66,11 @@ for p in range(1, page + 1):
     dr = requests.get('http://%s/favorites/page%s/' % (site, p)).text
 
     #get posts
-    elems = doc.xpath('.//div[@class="post shortcuts_item"]')
+    doc = lxml.html.fromstring(dr)
+    elems = doc.xpath('.//div[@class="posts shortcuts_items"]/div')
     #get hubs from posts
     hubs = [x.xpath('.//div[@class="hubs"]/a/text()') for x in elems]
 
-    #I think this regexp gets /post/ID/ from the url. Still, we need to proccess elements in list to get the url by get('href') method.
     postLinks = doc.xpath('.//h1[@class="title"]/a[1]')
 
     postDates = doc.xpath('.//div[@class="posts shortcuts_items"]/div/div[1]/text()')
@@ -101,8 +108,12 @@ for p in range(1, page + 1):
 
         m_link = u'http://m.habrahabr.ru/%s' % token
 
-        #TODO a[0] will not work here, we need to check for specific blog, not list of blogs. Hubs[index] doesnt work at this moment.
-        if (topicCount in topic_m) and (hubs[index] in blog_m or blog_m == []):
+        if len(set(blog_m) & set(hubs[index])) > 0:
+            hubFlag = True
+        else:
+            hubFlag = False
+
+        if (topicCount in topic_m) and (hubFlag or blog_m == []):
             td = requests.get(m_link).text
             try:
                 td.index(u'<a href="http://m.habrahabr.ru/" accesskey="2">μHabr</a>')

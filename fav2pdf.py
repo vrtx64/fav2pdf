@@ -30,7 +30,7 @@ try:
     if u'read-only' in profilepage:
         count = int(doc.xpath('.//td/a/span/span/text()')[0])
     else:
-        count = doc.xpath('.//div/a/span/span/text()')
+        count = int(doc.xpath('.//div/a/span/span/text()')[0])
     # Read-only accounts have different page layout, so it needs different handling
 except:
     print 'No favorites found. Most likely its a typo in username'

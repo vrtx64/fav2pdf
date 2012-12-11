@@ -1,104 +1,144 @@
 # -*- coding: utf-8 -*-
 
-import urllib
 import re
+import sys
 from pdf_gen import *
-from datetime import date
+from datetime import date, timedelta, datetime
+import requests
+
+import lxml.html
 
 
-user = 'vrtx'
-site = user + '.habrahabr.ru'
+user = 'JazzCore'
+site = "habrahabr.ru/users/%s" % user
 from_date = '' # 5 августа 2009
 to_date = '' # 30 ноября 2010
-blog_m = [] #['Android', 'Mobile Development'] только перечисленные блоги
-
+blog_m = [] #[u'Android', u'Mobile Development'] только перечисленные блоги. Должны быть юникодные, не забывать 'u' перед строкой. Звездочки писать не надо.
 
 topic_per_page = 10
-month = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря']
+month = [u'января', u'февраля', u'марта', u'апреля', u'мая', u'июня', u'июля', u'августа', u'сентября', u'октября',
+         u'ноября',
+         u'декабря']
 
-dump = urllib.urlopen('http://' + site + '/favorites/')
-dr = dump.read()
+dr = requests.get('http://' + site + '/favorites/').text
 
 try:
-	count = int(re.findall('Избранное \((.*)\)<\/a>', dr)[0])
+    doc = lxml.html.document_fromstring(dr)
+
+    profilepage = requests.get('http://' + site).text
+    profiledoc = lxml.html.document_fromstring(profilepage)
+    if u'read-only' in profilepage:
+        count = int(doc.xpath('.//td/a/span/span/text()')[0])
+    else:
+        count = doc.xpath('.//div/a/span/span/text()')
+    # Read-only accounts have different page layout, so it needs different handling
 except:
-	count = 0
+    print 'No favorites found. Most likely its a typo in username'
+    sys.exit(1)
 
 page = count / topic_per_page + 1
 
-data_finder = re.compile('(\d+)\s(\D+)\s(\d{4})')
+data_finder = doc.xpath('.//div[@class="posts shortcuts_items"]/div/div[1]/text()')
 
 if (to_date != ''):
-	td = data_finder.findall(to_date)[0]
-	to_date_dt = date(int(td[2]), month.index(td[1])+1, int(td[0]))
+    td = to_date.split(' ')
+    to_date_dt = date(int(td[2]), month.index(td[1]) + 1, int(td[0]))
 else:
-	to_date_dt = date.today()
+    to_date_dt = date.today()
 
 if (from_date != ''):
-	fd = data_finder.findall(from_date)[0]
-	from_date_dt = date(int(fd[2]), month.index(fd[1])+1, int(fd[0]))
+    fd = from_date.split(' ')
+    from_date_dt = date(int(fd[2]), month.index(fd[1]) + 1, int(fd[0]))
 else:
-	from_date_dt = date(2000, 1, 1)
+    from_date_dt = date(2000, 1, 1)
 
-content = '<br /><div align="center"><h2>Избранное пользователя <a href="http://%s.habrahabr.ru">%s</a></h2> (%s - %s) <br /><br /><strong>Содержание</strong></div><br />' % (user, user, from_date_dt.strftime('%d/%m/%y'), to_date_dt.strftime('%d/%m/%y'))
+content = u'<br /><div align="center"><h2>Избранное пользователя <a href="http://%s.habrahabr.ru">%s</a></h2> (%s - %s) <br /><br /><strong>Содержание</strong></div><br />' % (
+    user, user, from_date_dt.strftime('%d/%m/%y'), to_date_dt.strftime('%d/%m/%y'))
 
 topic = ''
 topic_res = ''
-i = 0
+topicCount = 0
 in_date = 0
 topic_m = []
 
-for p in range(1,page+1):
-	
-	print '\nProcessed page %s of %s:' % (p, page)
-	dump = urllib.urlopen('http://%s/favorites/page%s' % (site, p))
-	dr = dump.read()
+for p in range(1, page + 1):
+    print '\nProcessed page %s of %s:' % (p, page)
+    dr = requests.get('http://%s/favorites/page%s/' % (site, p)).text
 
-	res = re.findall('class="blog">(.*)<\/a>\D*\s*&rarr;\s*\D*\s+<a \D*href="(.*)"\D* class="topic">(.*)<\/a>', dr)
-	
-	data = re.findall('<div class="published">\D+\s*(\d+)\s(\D+)\s(\d{4}).*</span>', dr)
-	
-	for dd in data:
-		in_date += 1
-		d = date(int(dd[2]), month.index(dd[1])+1, int(dd[0]))
-		if (d >= from_date_dt and d <= to_date_dt):
-			topic_m.append(in_date)
-			
-	print '----------------------'
-	#0 - blog; 1 - link; 2 - topic;
-	for a in res:
-		i += 1
-		
-		m_link = 'http://m.habrahabr.ru/post%s' % (re.findall('/\d+/', a[1])[0])
-		
-		if (i in topic_m) and ((a[0] in blog_m) or (blog_m == [])):
+    #get posts
+    doc = lxml.html.fromstring(dr)
+    elems = doc.xpath('.//div[@class="posts shortcuts_items"]/div')
+    #get hubs from posts
+    hubs = [x.xpath('.//div[@class="hubs"]/a/text()') for x in elems]
 
-			topic_dump = urllib.urlopen(m_link)
-			td = topic_dump.read()
-			try:
-				td.index('<div class="tm"><a href="http://m.habrahabr.ru/" accesskey="2">μHabr</a>')
-				print '%d Topic: %s->%s' % (i, a[0], a[2])
-				content += '[%s] <a href="#%d">%s</a><br />' % (a[0], i, a[2])
+    postLinks = doc.xpath('.//h1[@class="title"]/a[1]')
 
-				#td = re.sub('<div class="m">.*,', '<div class="m"><a href="'+ autor +'.habrahabr.ru">'+ autor +'</a>,' , td)
-				t_start = td.find('<div class="txt">')
-				t_stop = td.find('<div class="adv"><script>')
-				topic_res = td[t_start:t_stop]
-				autor = re.findall('<div class="m">(.*),', topic_res)[0]
-				topic_res= re.sub('<div class="m">(.*),', '<div class="m"><a href="http://%s.habrahabr.ru">%s</a>,' % (autor, autor) , topic_res)
-				topic_res = re.sub('\s<br/>\s*\S*<br/>', '<br/>', topic_res)
-				topic_res = topic_res.replace('align="left"/>', '/>')
-				topic_res = topic_res.replace('align="center"', 'align="middle"')
-				
-				topic_res = re.sub('/>\s*<img', '/><br/><img', topic_res)
-				
-				topic = topic + '<div><pdf:nextpage /></div><h2><a name="%d">[%s] </a><a href="%s">%s</a></h2><br><br>' % (i, a[0], a[1], a[2]) + topic_res	
-			except:	
-				print ' Topic: %s->%s is locked!' % (a[0], a[2])
+    postDates = doc.xpath('.//div[@class="posts shortcuts_items"]/div/div[1]/text()')
 
+    for dd in postDates:
+        in_date += 1
 
-	print '----------------------'
-content = content + topic
+        parts = dd.strip(' ').split(' ')
+        if u'вчера' in dd:
+            d = date.today() - timedelta(1)
+        elif u'сегодня' in dd:
+            d = date.today()
+        else:
+            if re.search('20[0-9]{2}', dd):
+                d = date(int(parts[2]), month.index(parts[1]) + 1, int(parts[0]))
+            else:
+                d = date(datetime.now().year, month.index(parts[1]) + 1, int(parts[0]))
+
+        if from_date_dt <= d <= to_date_dt:
+            topic_m.append(in_date)
+
+    print '----------------------'
+    for index, a in enumerate(postLinks):
+        topicCount += 1
+
+        #here we will get /post/ID/ part of the link
+        # check for company/link posts
+        url = a.get('href')
+        if 'company' in url:
+            token = 'post/' + url.split('blog/')[1]
+        elif 'linker' in url:
+            token = url.split('linker/')[1].replace('go', 'post')
+        else:
+            token = a.get('href').split('ru/')[1]
+
+        m_link = u'http://m.habrahabr.ru/%s' % token
+
+        if len(set(blog_m) & set(hubs[index])) > 0:
+            hubFlag = True
+        else:
+            hubFlag = False
+
+        if (topicCount in topic_m) and (hubFlag or blog_m == []):
+            td = requests.get(m_link).text
+            try:
+                td.index(u'<a href="http://m.habrahabr.ru/" accesskey="2">μHabr</a>')
+                print '%d Topic: %s->%s' % (topicCount, ', '.join(hubs[index]), url)
+                content += u'[%s] <a href="#%d">%s</a><br />' % (', '.join(hubs[index]), topicCount, a.text)
+
+                t_start = td.find('<div class="txt">')
+                t_stop = td.find('<div class="adv">')
+                topic_res = td[t_start:t_stop]
+                autor = re.findall('<div class="m">\n\t\t\t\n\t\t\t(.*),', topic_res)[0]
+                topic_res = re.sub('<div class="m">\n\t\t\t\n\t\t\t(.*),',
+                    '<div class="m"><a href="http://%s.habrahabr.ru">%s</a>,' % (autor, autor), topic_res)
+                topic_res = re.sub('\s<br/>\s*\S*<br/>', '<br/>', topic_res)
+                topic_res = topic_res.replace('align="left"/>', '/>')
+                topic_res = topic_res.replace('align="center"', 'align="middle"')
+
+                topic_res = re.sub('/>\s*<img', '/><br/><img', topic_res)
+
+                topic = topic + u'<div><pdf:nextpage /></div><h2><a name="%d">[%s] </a><a href="%s">%s</a></h2><br><br>' % (
+                    topicCount, u', '.join(hubs[index]), url, a.text) + topic_res
+            except:
+                print ' Topic: %s->%s is locked!' % (', '.join(hubs[index]), a.text)
+
+    print '----------------------'
+content += topic
 
 
 #f = open('1.html', 'w')
@@ -106,4 +146,4 @@ content = content + topic
 #f.close()
 
 
-go(content, user+'.pdf')
+go(content, user + '.pdf')

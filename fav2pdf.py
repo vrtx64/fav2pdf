@@ -11,8 +11,8 @@ import lxml.html
 
 user = 'JazzCore'
 site = "habrahabr.ru/users/%s" % user
-from_date = '' # 5 августа 2009
-to_date = '' # 30 ноября 2010
+from_date = u'' # 5 августа 2009
+to_date = u'' # 30 ноября 2010
 blog_m = [] #[u'Android', u'Mobile Development'] только перечисленные блоги. Должны быть юникодные, не забывать 'u' перед строкой. Звездочки писать не надо.
 
 topic_per_page = 10

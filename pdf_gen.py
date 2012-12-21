@@ -168,4 +168,4 @@ def go(content, filename):
     content = header + content + footer
 
     #pisa.showLogging()
-    pisa.CreatePDF(content.encode('UTF-8'), file(filename, 'wb'))
+    pisa.CreatePDF(content.encode('UTF-8'), file(filename, 'wb'), raise_exception=False)

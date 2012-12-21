@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import codecs
 
 import ho.pisa as pisa
 
@@ -167,5 +166,5 @@ def go(content, filename):
     print '\n Prepare PDF...\n'
     content = header + content + footer
 
-    #pisa.showLogging()
+    pisa.showLogging()
     pisa.CreatePDF(content.encode('UTF-8'), file(filename, 'wb'), raise_exception=False)

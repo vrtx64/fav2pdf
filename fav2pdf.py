@@ -5,6 +5,7 @@ import sys
 from pdf_gen import *
 from datetime import date, timedelta, datetime
 import requests
+from multiprocessing import Pool
 
 import lxml.html
 
@@ -52,98 +53,108 @@ if (from_date != ''):
 else:
     from_date_dt = date(2000, 1, 1)
 
-content = u'<br /><div align="center"><h2>Избранное пользователя <a href="http://%s.habrahabr.ru">%s</a></h2> (%s - %s) <br /><br /><strong>Содержание</strong></div><br />' % (
-    user, user, from_date_dt.strftime('%d/%m/%y'), to_date_dt.strftime('%d/%m/%y'))
-
-topic = ''
 topic_res = ''
 topicCount = 0
 in_date = 0
 topic_m = []
 
-for p in range(1, page + 1):
-    print '\nProcessed page %s of %s:' % (p, page)
-    dr = requests.get('http://%s/favorites/page%s/' % (site, p)).text
+if __name__ == "__main__":
+    pool = Pool(processes=4)
+    for p in range(1, page + 1):
+        if p != 17:
+            continue
+        content = u'<br /><div align="center"><h2>Избранное пользователя <a href="http://%s.habrahabr.ru">%s</a></h2> (%s - %s) <br /><br /><strong>Содержание</strong></div><br />' % (
+            user, user, from_date_dt.strftime('%d/%m/%y'), to_date_dt.strftime('%d/%m/%y'))
 
-    #get posts
-    doc = lxml.html.fromstring(dr)
-    elems = doc.xpath('.//div[@class="posts shortcuts_items"]/div')
-    #get hubs from posts
-    hubs = [x.xpath('.//div[@class="hubs"]/a/text()') for x in elems]
+        topic = ''
 
-    postLinks = doc.xpath('.//h1[@class="title"]/a[1]')
+        print '\nProcessed page %s of %s:' % (p, page)
+        dr = requests.get('http://%s/favorites/page%s/' % (site, p)).text
 
-    postDates = doc.xpath('.//div[@class="posts shortcuts_items"]/div/div[1]/text()')
+        #get posts
+        doc = lxml.html.fromstring(dr)
+        elems = doc.xpath('.//div[@class="posts shortcuts_items"]/div')
+        #get hubs from posts
+        hubs = [x.xpath('.//div[@class="hubs"]/a/text()') for x in elems]
 
-    for dd in postDates:
-        in_date += 1
+        postLinks = doc.xpath('.//h1[@class="title"]/a[1]')
 
-        parts = dd.strip(' ').split(' ')
-        if u'вчера' in dd:
-            d = date.today() - timedelta(1)
-        elif u'сегодня' in dd:
-            d = date.today()
-        else:
-            if re.search('20[0-9]{2}', dd):
-                d = date(int(parts[2]), month.index(parts[1]) + 1, int(parts[0]))
+        postDates = doc.xpath('.//div[@class="posts shortcuts_items"]/div/div[1]/text()')
+
+        for dd in postDates:
+            in_date += 1
+
+            parts = dd.strip(' ').split(' ')
+            if u'вчера' in dd:
+                d = date.today() - timedelta(1)
+            elif u'сегодня' in dd:
+                d = date.today()
             else:
-                d = date(datetime.now().year, month.index(parts[1]) + 1, int(parts[0]))
+                if re.search('20[0-9]{2}', dd):
+                    d = date(int(parts[2]), month.index(parts[1]) + 1, int(parts[0]))
+                else:
+                    d = date(datetime.now().year, month.index(parts[1]) + 1, int(parts[0]))
 
-        if from_date_dt <= d <= to_date_dt:
-            topic_m.append(in_date)
+            if from_date_dt <= d <= to_date_dt:
+                topic_m.append(in_date)
 
-    print '----------------------'
-    for index, a in enumerate(postLinks):
-        topicCount += 1
+        print '----------------------'
+        for index, a in enumerate(postLinks):
+            topicCount += 1
 
-        #here we will get /post/ID/ part of the link
-        # check for company/link posts
-        url = a.get('href')
-        if 'company' in url:
-            token = 'post/' + url.split('blog/')[1]
-        elif 'linker' in url:
-            token = url.split('linker/')[1].replace('go', 'post')
-        else:
-            token = a.get('href').split('ru/')[1]
+            #here we will get /post/ID/ part of the link
+            # check for company/link posts
+            url = a.get('href')
+            if 'company' in url:
+                token = 'post/' + url.split('blog/')[1]
+            elif 'linker' in url:
+                token = url.split('linker/')[1].replace('go', 'post')
+            else:
+                token = a.get('href').split('ru/')[1]
 
-        m_link = u'http://m.habrahabr.ru/%s' % token
+            m_link = u'http://m.habrahabr.ru/%s' % token
 
-        if len(set(blog_m) & set(hubs[index])) > 0:
-            hubFlag = True
-        else:
-            hubFlag = False
+            if len(set(blog_m) & set(hubs[index])) > 0:
+                hubFlag = True
+            else:
+                hubFlag = False
 
-        if (topicCount in topic_m) and (hubFlag or blog_m == []):
-            td = requests.get(m_link).text
-            try:
-                td.index(u'<a href="http://m.habrahabr.ru/" accesskey="2">μHabr</a>')
-                print '%d Topic: %s->%s' % (topicCount, ', '.join(hubs[index]), url)
-                content += u'[%s] <a href="#%d">%s</a><br />' % (', '.join(hubs[index]), topicCount, a.text)
+            if (topicCount in topic_m) and (hubFlag or blog_m == []):
+                td = requests.get(m_link).text
+                try:
+                    td.index(u'<a href="http://m.habrahabr.ru/" accesskey="2">μHabr</a>')
+                    print '%d Topic: %s->%s' % (topicCount, ', '.join(hubs[index]), url)
+                    content += u'[%s] <a href="#%d">%s</a><br />' % (', '.join(hubs[index]), topicCount, a.text)
 
-                t_start = td.find('<div class="txt">')
-                t_stop = td.find('<div class="adv">')
-                topic_res = td[t_start:t_stop]
-                autor = re.findall('<div class="m">\n\t\t\t\n\t\t\t(.*),', topic_res)[0]
-                topic_res = re.sub('<div class="m">\n\t\t\t\n\t\t\t(.*),',
-                    '<div class="m"><a href="http://%s.habrahabr.ru">%s</a>,' % (autor, autor), topic_res)
-                topic_res = re.sub('\s<br/>\s*\S*<br/>', '<br/>', topic_res)
-                topic_res = topic_res.replace('align="left"/>', '/>')
-                topic_res = topic_res.replace('align="center"', 'align="middle"')
+                    t_start = td.find('<div class="txt">')
+                    t_stop = td.find('<div class="adv">')
+                    topic_res = td[t_start:t_stop]
+                    autor = re.findall('<div class="m">\n\t\t\t\n\t\t\t(.*),', topic_res)[0]
+                    topic_res = re.sub('<div class="m">\n\t\t\t\n\t\t\t(.*),',
+                        '<div class="m"><a href="http://%s.habrahabr.ru">%s</a>,' % (autor, autor), topic_res)
+                    topic_res = re.sub('\s<br/>\s*\S*<br/>', '<br/>', topic_res)
+                    topic_res = topic_res.replace('align="left"/>', '/>')
+                    topic_res = topic_res.replace('align="center"', 'align="middle"')
 
-                topic_res = re.sub('/>\s*<img', '/><br/><img', topic_res)
+                    topic_res = re.sub('/>\s*<img', '/><br/><img', topic_res)
 
-                topic = topic + u'<div><pdf:nextpage /></div><h2><a name="%d">[%s] </a><a href="%s">%s</a></h2><br><br>' % (
-                    topicCount, u', '.join(hubs[index]), url, a.text) + topic_res
-            except:
-                print ' Topic: %s->%s is locked!' % (', '.join(hubs[index]), a.text)
-
-    print '----------------------'
-content += topic
-
-
-#f = open('1.html', 'w')
-#f.write(topic)
-#f.close()
+                    topic = topic + u'<div><pdf:nextpage /></div><h2><a name="%d">[%s] </a><a href="%s">%s</a></h2><br><br>' % (
+                        topicCount, u', '.join(hubs[index]), url, a.text) + topic_res
+                except:
+                    print ' Topic: %s->%s is locked!' % (', '.join(hubs[index]), a.text)
 
 
-go(content, user + '.pdf')
+        print '----------------------'
+        content += topic
+        pool.apply_async(go, args=[content, user + '-tst3-' + str(p) + '.pdf'])
+    #content += topic
+
+    pool.close()
+    pool.join()
+
+    #f = open('1.html', 'w')
+    #f.write(topic)
+    #f.close()
+
+
+    #go(content, user + '.pdf')

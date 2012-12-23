@@ -6,80 +6,124 @@ from pdf_gen import *
 from datetime import date, timedelta, datetime
 import requests
 from multiprocessing import Pool
-
 import lxml.html
 
 
-user = 'JazzCore'
-site = "habrahabr.ru/users/%s" % user
-from_date = u'' # 5 августа 2009
-to_date = u'' # 30 ноября 2010
-blog_m = [] #[u'Android', u'Mobile Development'] только перечисленные блоги. Должны быть юникодные, не забывать 'u' перед строкой. Звездочки писать не надо.
+def countFavorites(pageText):
+    try:
+        pageTree = lxml.html.document_fromstring(pageText)
 
-topic_per_page = 10
-month = [u'января', u'февраля', u'марта', u'апреля', u'мая', u'июня', u'июля', u'августа', u'сентября', u'октября',
-         u'ноября',
-         u'декабря']
+        profilepage = requests.get('http://' + site).text
+        if u'read-only' in profilepage:
+            count = int(pageTree.xpath('.//td/a/span/span/text()')[0])
+        else:
+            count = int(pageTree.xpath('.//div/a/span/span/text()')[0])
+            # Read-only accounts have different page layout, so it needs different handling
 
-dr = requests.get('http://' + site + '/favorites/').text
+        return count
+    except:
+        print 'No favorites found. Most likely its a typo in username'
+        sys.exit(1)
 
-try:
-    doc = lxml.html.document_fromstring(dr)
 
-    profilepage = requests.get('http://' + site).text
-    profiledoc = lxml.html.document_fromstring(profilepage)
-    if u'read-only' in profilepage:
-        count = int(doc.xpath('.//td/a/span/span/text()')[0])
+def ProcessPost(linkElem, content, topic):
+    #here we will get /post/ID/ part of the link
+    # check for company/link posts
+    url = linkElem.get('href')
+    if 'company' in url:
+        token = 'post/' + url.split('blog/')[1]
+    elif 'linker' in url:
+        token = url.split('linker/')[1].replace('go', 'post')
     else:
-        count = int(doc.xpath('.//div/a/span/span/text()')[0])
-    # Read-only accounts have different page layout, so it needs different handling
-except:
-    print 'No favorites found. Most likely its a typo in username'
-    sys.exit(1)
+        token = linkElem.get('href').split('ru/')[1]
+    m_link = u'http://m.habrahabr.ru/%s' % token
+    if len(set(blog_m) & set(hubs[index])) > 0:
+        hubFlag = True
+    else:
+        hubFlag = False
+    if (topicCount in topic_m) and (hubFlag or blog_m == []):
+        td = requests.get(m_link).text
+        try:
+            td.index(u'<a href="http://m.habrahabr.ru/" accesskey="2">μHabr</a>')
+            print '%d Topic: %s->%s' % (topicCount, ', '.join(hubs[index]), url)
+            content += u'[%s] <a href="#%d">%s</a><br />' % (', '.join(hubs[index]), topicCount, linkElem.text)
 
-page = count / topic_per_page + 1
+            t_start = td.find('<div class="txt">')
+            t_stop = td.find('<div class="adv">')
+            topic_res = td[t_start:t_stop]
+            autor = re.findall('<div class="m">\n\t\t\t\n\t\t\t(.*),', topic_res)[0]
+            topic_res = re.sub('<div class="m">\n\t\t\t\n\t\t\t(.*),',
+                '<div class="m"><a href="http://%s.habrahabr.ru">%s</a>,' % (autor, autor), topic_res)
+            topic_res = re.sub('\s<br/>\s*\S*<br/>', '<br/>', topic_res)
+            topic_res = topic_res.replace('align="left"/>', '/>')
+            topic_res = topic_res.replace('align="center"', 'align="middle"')
 
-data_finder = doc.xpath('.//div[@class="posts shortcuts_items"]/div/div[1]/text()')
+            topic_res = re.sub('/>\s*<img', '/><br/><img', topic_res)
 
-if (to_date != ''):
-    td = to_date.split(' ')
-    to_date_dt = date(int(td[2]), month.index(td[1]) + 1, int(td[0]))
-else:
-    to_date_dt = date.today()
+            topic = topic + u'<div><pdf:nextpage /></div><h2><a name="%d">[%s] </a><a href="%s">%s</a></h2><br><br>' % (
+                topicCount, u', '.join(hubs[index]), url, linkElem.text) + topic_res
 
-if (from_date != ''):
-    fd = from_date.split(' ')
-    from_date_dt = date(int(fd[2]), month.index(fd[1]) + 1, int(fd[0]))
-else:
-    from_date_dt = date(2000, 1, 1)
+            return content, topic
+        except:
+            print ' Topic: %s->%s is locked!' % (', '.join(hubs[index]), linkElem.text)
 
-topic_res = ''
-topicCount = 0
-in_date = 0
-topic_m = []
 
 if __name__ == "__main__":
-    pool = Pool(processes=4)
-    for p in range(1, page + 1):
-        if p != 17:
-            continue
-        content = u'<br /><div align="center"><h2>Избранное пользователя <a href="http://%s.habrahabr.ru">%s</a></h2> (%s - %s) <br /><br /><strong>Содержание</strong></div><br />' % (
-            user, user, from_date_dt.strftime('%d/%m/%y'), to_date_dt.strftime('%d/%m/%y'))
+    user = 'JazzCore'
+    threads = 4 # Кол-во потоков. При большом кол-ве сильно возрастает потребление памяти. Рекоммендуется 4-8 потоков
+    from_date = u'' # 5 августа 2009
+    to_date = u'' # 30 ноября 2010
+    blog_m = [] #[u'Android', u'Mobile Development'] только перечисленные блоги. Должны быть юникодные не забывать 'u' перед строкой. Звездочки писать не надо.
 
+    site = "habrahabr.ru/users/%s" % user
+    topic_per_page = 10
+    month = [u'января', u'февраля', u'марта', u'апреля', u'мая', u'июня', u'июля', u'августа', u'сентября', u'октября',
+             u'ноября',
+             u'декабря']
+
+    pageText = requests.get('http://' + site + '/favorites/').text
+
+    count = countFavorites(pageText)
+
+    page = count / topic_per_page + 1
+
+    if to_date != '':
+        td = to_date.split(' ')
+        to_date_dt = date(int(td[2]), month.index(td[1]) + 1, int(td[0]))
+    else:
+        to_date_dt = date.today()
+
+    if from_date != '':
+        fd = from_date.split(' ')
+        from_date_dt = date(int(fd[2]), month.index(fd[1]) + 1, int(fd[0]))
+    else:
+        from_date_dt = date(2000, 1, 1)
+
+    topic_res = ''
+    topicCount = 0
+    in_date = 0
+    topic_m = []
+
+    pool = Pool(processes=threads)
+
+    for p in range(1, page + 1):
         topic = ''
+        tableOfContents = u'<br /><div align="center"><h2>Избранное пользователя <a href="http://%s.habrahabr.ru">%s</a>'\
+                          u'</h2> (%s - %s) <br /><br /><strong>Содержание</strong></div><br />' %\
+                          (user, user, from_date_dt.strftime('%d/%m/%y'), to_date_dt.strftime('%d/%m/%y'))
 
         print '\nProcessed page %s of %s:' % (p, page)
-        dr = requests.get('http://%s/favorites/page%s/' % (site, p)).text
+        pageText = requests.get('http://%s/favorites/page%s/' % (site, p)).text
 
         #get posts
-        doc = lxml.html.fromstring(dr)
-        elems = doc.xpath('.//div[@class="posts shortcuts_items"]/div')
+        pageTree = lxml.html.fromstring(pageText)
+        elems = pageTree.xpath('.//div[@class="posts shortcuts_items"]/div')
         #get hubs from posts
         hubs = [x.xpath('.//div[@class="hubs"]/a/text()') for x in elems]
 
-        postLinks = doc.xpath('.//h1[@class="title"]/a[1]')
+        postLinks = pageTree.xpath('.//h1[@class="title"]/a[1]')
 
-        postDates = doc.xpath('.//div[@class="posts shortcuts_items"]/div/div[1]/text()')
+        postDates = pageTree.xpath('.//div[@class="posts shortcuts_items"]/div/div[1]/text()')
 
         for dd in postDates:
             in_date += 1
@@ -102,59 +146,21 @@ if __name__ == "__main__":
         for index, a in enumerate(postLinks):
             topicCount += 1
 
-            #here we will get /post/ID/ part of the link
-            # check for company/link posts
-            url = a.get('href')
-            if 'company' in url:
-                token = 'post/' + url.split('blog/')[1]
-            elif 'linker' in url:
-                token = url.split('linker/')[1].replace('go', 'post')
-            else:
-                token = a.get('href').split('ru/')[1]
-
-            m_link = u'http://m.habrahabr.ru/%s' % token
-
-            if len(set(blog_m) & set(hubs[index])) > 0:
-                hubFlag = True
-            else:
-                hubFlag = False
-
-            if (topicCount in topic_m) and (hubFlag or blog_m == []):
-                td = requests.get(m_link).text
-                try:
-                    td.index(u'<a href="http://m.habrahabr.ru/" accesskey="2">μHabr</a>')
-                    print '%d Topic: %s->%s' % (topicCount, ', '.join(hubs[index]), url)
-                    content += u'[%s] <a href="#%d">%s</a><br />' % (', '.join(hubs[index]), topicCount, a.text)
-
-                    t_start = td.find('<div class="txt">')
-                    t_stop = td.find('<div class="adv">')
-                    topic_res = td[t_start:t_stop]
-                    autor = re.findall('<div class="m">\n\t\t\t\n\t\t\t(.*),', topic_res)[0]
-                    topic_res = re.sub('<div class="m">\n\t\t\t\n\t\t\t(.*),',
-                        '<div class="m"><a href="http://%s.habrahabr.ru">%s</a>,' % (autor, autor), topic_res)
-                    topic_res = re.sub('\s<br/>\s*\S*<br/>', '<br/>', topic_res)
-                    topic_res = topic_res.replace('align="left"/>', '/>')
-                    topic_res = topic_res.replace('align="center"', 'align="middle"')
-
-                    topic_res = re.sub('/>\s*<img', '/><br/><img', topic_res)
-
-                    topic = topic + u'<div><pdf:nextpage /></div><h2><a name="%d">[%s] </a><a href="%s">%s</a></h2><br><br>' % (
-                        topicCount, u', '.join(hubs[index]), url, a.text) + topic_res
-                except:
-                    print ' Topic: %s->%s is locked!' % (', '.join(hubs[index]), a.text)
-
+            #Retrieve all data from post and append it to string with page content
+            tableOfContents, topic = ProcessPost(a, tableOfContents, topic)
 
         print '----------------------'
-        content += topic
-        pool.apply_async(go, args=[content, user + '-tst3-' + str(p) + '.pdf'])
-    #content += topic
+        tableOfContents += topic
+        pool.apply_async(go, args=[tableOfContents, user + '-tst3-' + str(p) + '.pdf'])
+
+    print 'Wait until all pages are saved'
 
     pool.close()
     pool.join()
 
+    print 'Done!'
     #f = open('1.html', 'w')
     #f.write(topic)
     #f.close()
-
 
     #go(content, user + '.pdf')

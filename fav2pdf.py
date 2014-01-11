@@ -10,11 +10,33 @@ import requests
 import lxml.html
 
 
-def main():
-    user = 'icoz'
+def parseTopic(url):
+    td = requests.get(url).text
+    td.index(u'<a href="http://m.habrahabr.ru/" accesskey="2">μHabr</a>')
+    t_start = td.find('<div class="txt">')
+    t_stop = td.find('<div class="adv">')
+    topic_res = td[t_start:t_stop]
+    autor = re.findall('<div class="m">\n\t\t\t\n\t\t\t(.*),', topic_res)[0]
+    topic_res = re.sub('<div class="m">\n\t\t\t\n\t\t\t(.*),',
+                       '<div class="m"><a href="http://%s.habrahabr.ru">%s</a>,' % (autor, autor), topic_res)
+    topic_res = re.sub('\s<br/>\s*\S*<br/>', '<br/>', topic_res)
+    topic_res = topic_res.replace('align="left"/>', '/>')
+    topic_res = topic_res.replace('align="center"', 'align="middle"')
+
+    topic_res = re.sub('/>\s*<img', '/><br/><img', topic_res)
+
+    cmts_start = td.find('<div class="cmts">')
+    cmts_stop = td.find('<div class="bm">')
+    cmts_res = td[cmts_start:cmts_stop]
+
+    return topic_res, cmts_res
+
+
+def save(dest_dir=u'.', user='none', from_date=u'', to_date=u'', all_in_one=False, save_comments=True, create_symlinks=True):
+    # user = 'icoz'
     site = "habrahabr.ru/users/%s" % user
-    from_date = u''  # 5 августа 2009
-    to_date = u''  # 30 ноября 2010
+    # from_date = u''  # 5 августа 2009
+    # to_date = u''  # 30 ноября 2010
     #[u'Android', u'Mobile Development'] только перечисленные блоги. Должны быть юникодные, не забывать 'u' перед строкой. Звездочки писать не надо.
     blog_m = []
 
@@ -25,12 +47,17 @@ def main():
         u'декабря']
 
     dr = requests.get('http://' + site + '/favorites/').text
-    if not os.path.exists('pdf`'):
-        os.mkdir('pdf')
-    if not os.path.exists('pdf/posts'):
-        os.mkdir('pdf/posts')
-    if not os.path.exists('pdf/hubs'):
-        os.mkdir('pdf/hubs')
+    DIR_PDF = dest_dir + '/pdf'
+    DIR_POSTS = DIR_PDF + '/posts'
+    DIR_HUBS = DIR_PDF + '/hubs'
+    if not all_in_one:
+        if not os.path.exists(DIR_PDF):
+            os.mkdir(DIR_PDF)
+        if not os.path.exists(DIR_POSTS):
+            os.mkdir(DIR_POSTS)
+        if create_symlinks:
+            if not os.path.exists(DIR_HUBS):
+                os.mkdir(DIR_HUBS)
 
     try:
 
@@ -133,47 +160,33 @@ def main():
                 hubFlag = False
 
             if (topicCount in topic_m) and (hubFlag or blog_m == []):
-                td = requests.get(m_link).text
                 try:
-                    td.index(u'<a href="http://m.habrahabr.ru/" accesskey="2">μHabr</a>')
                     print '%d Topic: %s->%s' % (topicCount, ', '.join(hubs[index]), url)
-                    content += u'[%s] <a href="#%d">%s</a><br />' % (', '.join(hubs[index]), topicCount, a.text)
-
-                    t_start = td.find('<div class="txt">')
-                    t_stop = td.find('<div class="adv">')
-                    topic_res = td[t_start:t_stop]
-                    autor = re.findall('<div class="m">\n\t\t\t\n\t\t\t(.*),', topic_res)[0]
-                    topic_res = re.sub('<div class="m">\n\t\t\t\n\t\t\t(.*),',
-                                       '<div class="m"><a href="http://%s.habrahabr.ru">%s</a>,' % (autor, autor), topic_res)
-                    topic_res = re.sub('\s<br/>\s*\S*<br/>', '<br/>', topic_res)
-                    topic_res = topic_res.replace('align="left"/>', '/>')
-                    topic_res = topic_res.replace('align="center"', 'align="middle"')
-
-                    topic_res = re.sub('/>\s*<img', '/><br/><img', topic_res)
-
-                    cmts_start = td.find('<div class="cmts">')
-                    cmts_stop = td.find('<div class="bm">')
-                    cmts_res = td[cmts_start:cmts_stop]
-                    topic = u'<h2><a name="%d">[%s] </a><br><a href="%s">%s</a></h2><br><br>' % (topicCount, u', '.join(hubs[index]), url, a.text) + topic_res + cmts_res
+                    content += u'[%s] <a href="#%d">%s</a><br />' % (
+                        ', '.join(hubs[index]), topicCount, a.text)
+                    topic_res, cmts_res = parseTopic(m_link)
+                    topic = u'<h2><a name="%d">[%s] </a><br><a href="%s">%s</a></h2><br><br>' % (
+                        topicCount, u', '.join(hubs[index]), url, a.text) + topic_res + cmts_res
                     go(topic, 'pdf/posts/' + id + '.pdf')
                     # create symlinks
-                    for hub in hubs[index]:
-                        if not os.path.exists('pdf/hubs/' + hub):
-                            os.mkdir('pdf/hubs/' + hub)
-                        os.symlink(
-                            '../../posts/' + id + '.pdf', 'pdf/hubs/' + hub +"/" + id + '.pdf')
+                    if create_symlinks:
+                        for hub in hubs[index]:
+                            if not os.path.exists('pdf/hubs/' + hub):
+                                os.mkdir('pdf/hubs/' + hub)
+                            os.symlink(
+                                '../../posts/' + id + '.pdf', 'pdf/hubs/' + hub + "/" + id + '.pdf')
                 except:
                     print ' Topic: %s->%s is locked!' % (', '.join(hubs[index]), a.text)
 
         print '----------------------'
-        # content += topic
+        if all_in_one:
+            content += topic
+    if all_in_one:
+        go(content, dest_dir + '/' + user + '.pdf')
 
-    #f = open('1.html', 'w')
-    # f.write(topic)
-    # f.close()
 
-
-    # go(content, user + '.pdf')
+def main():
+    save()
 
 if __name__ == '__main__':
     main()

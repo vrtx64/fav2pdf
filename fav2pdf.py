@@ -1,6 +1,7 @@
-# -*- coding: utf-8 -*-
+s# -*- coding: utf-8 -*-
 
 import re
+import argparse
 import os
 import sys
 from pdf_gen import *
@@ -113,8 +114,7 @@ def save(dest_dir=u'.', user='none', from_date=u'', to_date=u'',
 
         postLinks = doc.xpath('.//h1[@class="title"]/a[1]')
 
-        postDates = doc.xpath(
-            './/div[@class="posts shortcuts_items"]/div/div[1]/text()')
+        postDates = doc.xpath('.//div[@class="posts shortcuts_items"]/div/div[1]/text()')
 
         for dd in postDates:
             in_date += 1
@@ -148,6 +148,7 @@ def save(dest_dir=u'.', user='none', from_date=u'', to_date=u'',
                 token = url.split('linker/')[1].replace('go', 'post')
             else:
                 token = a.get('href').split('ru/')[1]
+            # get post id for saving
             id = token.split('post/')[1]
             if id[-1] == "/":
                 id = id[:-1]
@@ -191,7 +192,15 @@ def save(dest_dir=u'.', user='none', from_date=u'', to_date=u'',
 
 
 def main():
-    save()
+    p = argparse.ArgumentParser(description=u'Tool for save favorite posts from habrahabr.ru in pdf''s')
+    p.add_argument('user', type=str, help="habrahabr.ru username")
+    p.add_argument('-d', '--output-dir', type=str, help="Directory for output")
+    p.add_argument('--from-date', type=str, default=u'', help='From date')
+    p.add_argument('--to-date', type=str, default=u'', help='To date')
+
+    args = p.parse_args()
+
+    # save()
 
 if __name__ == '__main__':
     main()

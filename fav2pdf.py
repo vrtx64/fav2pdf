@@ -162,19 +162,24 @@ def save(dest_dir=u'.', user='none', from_date=u'', to_date=u'', all_in_one=Fals
             if (topicCount in topic_m) and (hubFlag or blog_m == []):
                 try:
                     print '%d Topic: %s->%s' % (topicCount, ', '.join(hubs[index]), url)
-                    content += u'[%s] <a href="#%d">%s</a><br />' % (
-                        ', '.join(hubs[index]), topicCount, a.text)
+                    if all_in_one:
+                        content += u'[%s] <a href="#%d">%s</a><br />' % (
+                            ', '.join(hubs[index]), topicCount, a.text)
                     topic_res, cmts_res = parseTopic(m_link)
+                    # format topic
                     topic = u'<h2><a name="%d">[%s] </a><br><a href="%s">%s</a></h2><br><br>' % (
-                        topicCount, u', '.join(hubs[index]), url, a.text) + topic_res + cmts_res
-                    go(topic, 'pdf/posts/' + id + '.pdf')
+                        topicCount, u', '.join(hubs[index]), url, a.text) + topic_res
+                    # ... and comments
+                    if save_comments:
+                        topic += cmts_res
+                    go(topic, DIR_POSTS + '/' + id + '.pdf')
                     # create symlinks
                     if create_symlinks:
                         for hub in hubs[index]:
-                            if not os.path.exists('pdf/hubs/' + hub):
-                                os.mkdir('pdf/hubs/' + hub)
+                            if not os.path.exists(DIR_HUBS + '/' + hub):
+                                os.mkdir(DIR_HUBS + '/' + hub)
                             os.symlink(
-                                '../../posts/' + id + '.pdf', 'pdf/hubs/' + hub + "/" + id + '.pdf')
+                                '../../posts/' + id + '.pdf', DIR_HUBS + '/' + hub + "/" + id + '.pdf')
                 except:
                     print ' Topic: %s->%s is locked!' % (', '.join(hubs[index]), a.text)
 

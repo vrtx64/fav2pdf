@@ -32,13 +32,13 @@ def parseTopic(url):
     return topic_res, cmts_res
 
 
-def save(dest_dir=u'.', user='none', from_date=u'', to_date=u'', all_in_one=False, save_comments=True, create_symlinks=True):
+def save(dest_dir=u'.', user='none', from_date=u'', to_date=u'', 
+    all_in_one=False, save_comments=True, create_symlinks=True, only_hubs = []):
     # user = 'icoz'
     site = "habrahabr.ru/users/%s" % user
     # from_date = u''  # 5 августа 2009
     # to_date = u''  # 30 ноября 2010
     #[u'Android', u'Mobile Development'] только перечисленные блоги. Должны быть юникодные, не забывать 'u' перед строкой. Звездочки писать не надо.
-    blog_m = []
 
     topic_per_page = 10
     month = [
@@ -154,12 +154,12 @@ def save(dest_dir=u'.', user='none', from_date=u'', to_date=u'', all_in_one=Fals
 
             m_link = u'http://m.habrahabr.ru/%s' % token
 
-            if len(set(blog_m) & set(hubs[index])) > 0:
+            if len(set(only_hubs) & set(hubs[index])) > 0:
                 hubFlag = True
             else:
                 hubFlag = False
 
-            if (topicCount in topic_m) and (hubFlag or blog_m == []):
+            if (topicCount in topic_m) and (hubFlag or only_hubs == []):
                 try:
                     print '%d Topic: %s->%s' % (topicCount, ', '.join(hubs[index]), url)
                     if all_in_one:

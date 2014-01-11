@@ -1,4 +1,4 @@
-s# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 import re
 import argparse
@@ -194,13 +194,18 @@ def save(dest_dir=u'.', user='none', from_date=u'', to_date=u'',
 def main():
     p = argparse.ArgumentParser(description=u'Tool for save favorite posts from habrahabr.ru in pdf''s')
     p.add_argument('user', type=str, help="habrahabr.ru username")
-    p.add_argument('-d', '--output-dir', type=str, help="Directory for output")
+    p.add_argument('-d', '--output-dir', default='.', type=str, help="Directory for output")
     p.add_argument('--from-date', type=str, default=u'', help='From date')
     p.add_argument('--to-date', type=str, default=u'', help='To date')
-
+    p.add_argument('--all-in-one', action='store_true', help='Save all posts in one PDF-file')
+    p.add_argument('--only_hub', type=str, action='append', help='Save only posts from hubs. For multiple: "--only_hub Hub1 --only_hub Hub2"')
+    p.add_argument('--no-comments',action='store_true', help='Dont save comments from posts')
+    p.add_argument('--no-symlinks',action='store_true', help='Dont create symlinks to posts')
     args = p.parse_args()
-
-    # save()
+    print (args)
+    save(dest_dir = args.output_dir, user=args.user, from_date=args.from_date, to_date=args.to_date,
+        only_hubs=args.only_hub, all_in_one=args.all_in_one, save_comments=not args.no_comments,
+        create_symlinks = not args.no_symlinks)
 
 if __name__ == '__main__':
     main()

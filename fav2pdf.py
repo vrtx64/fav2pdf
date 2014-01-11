@@ -1,3 +1,4 @@
+#!/usr/bin/python2
 # -*- coding: utf-8 -*-
 
 import re
@@ -95,7 +96,7 @@ def save(dest_dir=u'.', user='none', from_date=u'', to_date=u'',
 
     content = u'<br /><div align="center"><h2>Избранное пользователя <a href="http://%s.habrahabr.ru">%s</a></h2> (%s - %s) <br /><br /><strong>Содержание</strong></div><br />' % (
         user, user, from_date_dt.strftime('%d/%m/%y'), to_date_dt.strftime('%d/%m/%y'))
-
+    content_body = u''
     topic = ''
     topic_res = ''
     topicCount = 0
@@ -173,22 +174,23 @@ def save(dest_dir=u'.', user='none', from_date=u'', to_date=u'',
                     # ... and comments
                     if save_comments:
                         topic += cmts_res
-                    go(topic, DIR_POSTS + '/' + id + '.pdf')
-                    # create symlinks
-                    if create_symlinks:
-                        for hub in hubs[index]:
-                            if not os.path.exists(DIR_HUBS + '/' + hub):
-                                os.mkdir(DIR_HUBS + '/' + hub)
-                            os.symlink(
-                                '../../posts/' + id + '.pdf', DIR_HUBS + '/' + hub + "/" + id + '.pdf')
+                    if all_in_one:
+                        content_body += topic
+                    else:
+                        go(topic, DIR_POSTS + '/' + id + '.pdf')
+                        # create symlinks
+                        if create_symlinks:
+                            for hub in hubs[index]:
+                                if not os.path.exists(DIR_HUBS + '/' + hub):
+                                    os.mkdir(DIR_HUBS + '/' + hub)
+                                os.symlink(
+                                    '../../posts/' + id + '.pdf', DIR_HUBS + '/' + hub + "/" + id + '.pdf')
                 except:
                     print ' Topic: %s->%s is locked!' % (', '.join(hubs[index]), a.text)
 
         print '----------------------'
-        if all_in_one:
-            content += topic
     if all_in_one:
-        go(content, dest_dir + '/' + user + '.pdf')
+        go(content+content_body, dest_dir + '/' + user + '.pdf')
 
 
 def main():

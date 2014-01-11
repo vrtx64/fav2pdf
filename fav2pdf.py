@@ -212,6 +212,9 @@ def main():
     p.add_argument('--no-symlinks', action='store_true',
                    help='Dont create symlinks to posts')
     args = p.parse_args()
+    if not os.path.exists(args.output_dir):
+        print('Error! Directory "'+args.output_dir+'" not exists!')
+        sys.exit(1)
     save(
         dest_dir=args.output_dir, user=args.user, from_date=args.from_date.decode(sys.getfilesystemencoding()), to_date=args.to_date.decode(sys.getfilesystemencoding()),
         only_hubs=args.only_hubs, all_in_one=args.all_in_one, save_comments=not args.no_comments,

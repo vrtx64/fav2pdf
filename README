@@ -1,0 +1,24 @@
+usage: fav2pdf.py [-h] [-d OUTPUT_DIR] [--from-date FROM_DATE]
+                  [--to-date TO_DATE] [--all-in-one]
+                  [--only-hubs [ONLY_HUBS [ONLY_HUBS ...]]] [--no-comments]
+                  [--no-symlinks]
+                  user
+
+Tool for save favorite posts from habrahabr.ru in pdfs
+
+positional arguments:
+  user                  habrahabr.ru username
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -d OUTPUT_DIR, --output-dir OUTPUT_DIR
+                        Directory for output
+  --from-date FROM_DATE
+                        From date
+  --to-date TO_DATE     To date
+  --all-in-one          Save all posts in one PDF-file
+  --only-hubs [ONLY_HUBS [ONLY_HUBS ...]]
+                        Save only posts from hubs. For multiple: "--only-hubs
+                        Hub1 Hub2 --"
+  --no-comments         Dont save comments from posts
+  --no-symlinks         Dont create symlinks to posts

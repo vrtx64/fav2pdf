@@ -34,14 +34,15 @@ def parseTopic(url):
     return topic_res, cmts_res
 
 
-def save(dest_dir=u'.', user='none', from_date=u'', to_date=u'', 
-    all_in_one=False, save_comments=True, create_symlinks=True, only_hubs = []):
+def save(dest_dir=u'.', user='none', from_date=u'', to_date=u'',
+         all_in_one=False, save_comments=True, create_symlinks=True, only_hubs=[]):
     # user = 'icoz'
     site = "habrahabr.ru/users/%s" % user
     # from_date = u''  # 5 августа 2009
     # to_date = u''  # 30 ноября 2010
     #[u'Android', u'Mobile Development'] только перечисленные блоги. Должны быть юникодные, не забывать 'u' перед строкой. Звездочки писать не надо.
-
+    if only_hubs is None:
+        only_hubs = []
     topic_per_page = 10
     month = [
         u'января', u'февраля', u'марта', u'апреля', u'мая', u'июня', u'июля', u'августа', u'сентября', u'октября',
@@ -115,7 +116,8 @@ def save(dest_dir=u'.', user='none', from_date=u'', to_date=u'',
 
         postLinks = doc.xpath('.//h1[@class="title"]/a[1]')
 
-        postDates = doc.xpath('.//div[@class="posts shortcuts_items"]/div/div[1]/text()')
+        postDates = doc.xpath(
+            './/div[@class="posts shortcuts_items"]/div/div[1]/text()')
 
         for dd in postDates:
             in_date += 1
@@ -190,24 +192,30 @@ def save(dest_dir=u'.', user='none', from_date=u'', to_date=u'',
 
         print '----------------------'
     if all_in_one:
-        go(content+content_body, dest_dir + '/' + user + '.pdf')
+        go(content + content_body, dest_dir + '/' + user + '.pdf')
 
 
 def main():
-    p = argparse.ArgumentParser(description=u'Tool for save favorite posts from habrahabr.ru in pdf''s')
+    p = argparse.ArgumentParser(
+        description=u'Tool for save favorite posts from habrahabr.ru in pdf''s')
     p.add_argument('user', type=str, help="habrahabr.ru username")
-    p.add_argument('-d', '--output-dir', default='.', type=str, help="Directory for output")
+    p.add_argument('-d', '--output-dir', default='.',
+                   type=str, help="Directory for output")
     p.add_argument('--from-date', type=str, default=u'', help='From date')
     p.add_argument('--to-date', type=str, default=u'', help='To date')
-    p.add_argument('--all-in-one', action='store_true', help='Save all posts in one PDF-file')
-    p.add_argument('--only_hub', type=str, action='append', help='Save only posts from hubs. For multiple: "--only_hub Hub1 --only_hub Hub2"')
-    p.add_argument('--no-comments',action='store_true', help='Dont save comments from posts')
-    p.add_argument('--no-symlinks',action='store_true', help='Dont create symlinks to posts')
+    p.add_argument('--all-in-one', action='store_true',
+                   help='Save all posts in one PDF-file')
+    p.add_argument('--only-hubs', nargs="*",
+                   help='Save only posts from hubs. For multiple: "--only-hubs Hub1 Hub2 --"')
+    p.add_argument('--no-comments', action='store_true',
+                   help='Dont save comments from posts')
+    p.add_argument('--no-symlinks', action='store_true',
+                   help='Dont create symlinks to posts')
     args = p.parse_args()
-    print (args)
-    save(dest_dir = args.output_dir, user=args.user, from_date=args.from_date, to_date=args.to_date,
-        only_hubs=args.only_hub, all_in_one=args.all_in_one, save_comments=not args.no_comments,
-        create_symlinks = not args.no_symlinks)
+    save(
+        dest_dir=args.output_dir, user=args.user, from_date=args.from_date.decode(sys.getfilesystemencoding()), to_date=args.to_date.decode(sys.getfilesystemencoding()),
+        only_hubs=args.only_hubs, all_in_one=args.all_in_one, save_comments=not args.no_comments,
+        create_symlinks=not args.no_symlinks)
 
 if __name__ == '__main__':
     main()

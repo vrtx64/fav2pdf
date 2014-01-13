@@ -18,9 +18,9 @@ def parseTopic(url):
     t_start = td.find('<div class="txt">')
     t_stop = td.find('<div class="adv">')
     topic_res = td[t_start:t_stop]
-    autor = re.findall('<div class="m">\n\t\t\t\n\t\t\t(.*),', topic_res)[0]
+    author = re.findall('<div class="m">\n\t\t\t\n\t\t\t(.*),', topic_res)[0]
     topic_res = re.sub('<div class="m">\n\t\t\t\n\t\t\t(.*),',
-                       '<div class="m"><a href="http://%s.habrahabr.ru">%s</a>,' % (autor, autor), topic_res)
+                       '<div class="m"><a href="http://%s.habrahabr.ru">%s</a>,' % (author, author), topic_res)
     topic_res = re.sub('\s<br/>\s*\S*<br/>', '<br/>', topic_res)
     topic_res = topic_res.replace('align="left"/>', '/>')
     topic_res = topic_res.replace('align="center"', 'align="middle"')
